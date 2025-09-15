@@ -1,0 +1,260 @@
+<template>
+  <div class="register-container">
+    <div class="register-form">
+      <div class="register-header">
+        <h1>创建新账号</h1>
+        <p>注册成为智能课程助教的用户</p>
+      </div>
+      
+      <el-form 
+        :model="registerForm" 
+        :rules="registerRules" 
+        ref="registerForm" 
+        label-width="0px"
+        size="medium"
+      >
+        <el-form-item prop="username">
+          <el-input
+            v-model="registerForm.username"
+            placeholder="请输入用户名"
+            prefix-icon="el-icon-user"
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item prop="email">
+          <el-input
+            v-model="registerForm.email"
+            placeholder="请输入邮箱"
+            prefix-icon="el-icon-message"
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item prop="password">
+          <el-input
+            v-model="registerForm.password"
+            type="password"
+            placeholder="请输入密码"
+            prefix-icon="el-icon-lock"
+            show-password
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item prop="confirmPassword">
+          <el-input
+            v-model="registerForm.confirmPassword"
+            type="password"
+            placeholder="请确认密码"
+            prefix-icon="el-icon-lock"
+            show-password
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item prop="securityQuestion">
+          <el-input
+            v-model="registerForm.securityQuestion"
+            placeholder="请输入安全问题（可选）"
+            prefix-icon="el-icon-question"
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item prop="securityAnswer" v-if="registerForm.securityQuestion">
+          <el-input
+            v-model="registerForm.securityAnswer"
+            placeholder="请输入安全问题答案"
+            prefix-icon="el-icon-edit"
+          ></el-input>
+        </el-form-item>
+        
+        <el-form-item>
+          <el-button 
+            type="primary" 
+            @click="handleRegister"
+            :loading="loading"
+            class="register-button"
+          >
+            {{ loading ? '注册中...' : '注册' }}
+          </el-button>
+        </el-form-item>
+      </el-form>
+      
+      <div class="register-footer">
+        <span>已有账号？</span>
+        <router-link to="/login" class="login-link">立即登录</router-link>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'Register',
+  data() {
+    const validateConfirmPassword = (rule, value, callback) => {
+      if (value === '') {
+        callback(new Error('请再次输入密码'))
+      } else if (value !== this.registerForm.password) {
+        callback(new Error('两次输入密码不一致!'))
+      } else {
+        callback()
+      }
+    }
+    
+    return {
+      registerForm: {
+        username: '',
+        email: '',
+        password: '',
+        confirmPassword: '',
+        securityQuestion: '',
+        securityAnswer: ''
+      },
+      registerRules: {
+        username: [
+          { required: true, message: '请输入用户名', trigger: 'blur' },
+          { min: 3, max: 20, message: '用户名长度在 3 到 20 个字符', trigger: 'blur' }
+        ],
+        email: [
+          { required: true, message: '请输入邮箱地址', trigger: 'blur' },
+          { type: 'email', message: '请输入正确的邮箱地址', trigger: ['blur', 'change'] }
+        ],
+        password: [
+          { required: true, message: '请输入密码', trigger: 'blur' },
+          { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
+        ],
+        confirmPassword: [
+          { required: true, validator: validateConfirmPassword, trigger: 'blur' }
+        ],
+        securityQuestion: [
+          { min: 5, max: 200, message: '安全问题长度在 5 到 200 个字符', trigger: 'blur' }
+        ],
+        securityAnswer: [
+          { min: 1, max: 100, message: '安全答案长度在 1 到 100 个字符', trigger: 'blur' }
+        ]
+      },
+      loading: false
+    }
+  },
+  methods: {
+    async handleRegister() {
+      this.$refs.registerForm.validate(async (valid) => {
+        if (valid) {
+          this.loading = true
+          
+          try {
+            // 准备注册数据
+            const registerData = {
+              username: this.registerForm.username,
+              email: this.registerForm.email,
+              password: this.registerForm.password
+            }
+            
+            // 如果设置了安全问题，添加到注册数据
+            if (this.registerForm.securityQuestion.trim()) {
+              registerData.security_question = this.registerForm.securityQuestion
+              registerData.security_answer = this.registerForm.securityAnswer
+            }
+            
+            // 调用注册API
+            await this.$api.authAPI.register(registerData)
+            
+            this.$message.success('注册成功！请登录')
+            this.$router.push('/login')
+            
+          } catch (error) {
+            console.error('注册失败:', error)
+            // 错误信息已由axios拦截器处理
+          } finally {
+            this.loading = false
+          }
+        } else {
+          return false
+        }
+      })
+    }
+  }
+}
+</script>
+
+<style scoped>
+.register-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.register-form {
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
+}
+
+.register-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.register-header h1 {
+  color: #333;
+  margin: 0 0 10px 0;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.register-header p {
+  color: #666;
+  margin: 0;
+  font-size: 14px;
+}
+
+.register-button {
+  width: 100%;
+  height: 45px;
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.register-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.login-link {
+  color: #409EFF;
+  text-decoration: none;
+  margin-left: 5px;
+  font-weight: 500;
+}
+
+.login-link:hover {
+  text-decoration: underline;
+}
+
+/* Element UI 样式覆盖 */
+.el-form-item {
+  margin-bottom: 20px;
+}
+
+.el-input__inner {
+  height: 45px;
+  border-radius: 6px;
+}
+
+.el-button--primary {
+  background-color: #409EFF;
+  border-color: #409EFF;
+}
+
+.el-button--primary:hover {
+  background-color: #66b1ff;
+  border-color: #66b1ff;
+}
+</style>
