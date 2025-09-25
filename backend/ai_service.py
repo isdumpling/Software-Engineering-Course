@@ -1,5 +1,5 @@
 """
-火山引擎豆包AI服务集成
+火山引擎豆包AI服务集成 (已集成RAG功能)
 """
 import asyncio
 from typing import Optional, Dict, Any
@@ -7,45 +7,86 @@ from config import settings
 import logging
 from volcenginesdkarkruntime import Ark
 
+# --- RAG 相关导入 ---
+from langchain_community.vectorstores import Chroma
+from langchain_community.embeddings import HuggingFaceEmbeddings
+
 logger = logging.getLogger(__name__)
 
+# --- RAG 配置 ---
+CHROMA_DB_PATH = "chroma_db"
+EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+
 class DoubaoAIService:
-    """火山引擎豆包AI服务"""
+    """火山引擎豆包AI服务 (集成RAG)"""
     
     def __init__(self):
         self.api_key = settings.ARK_API_KEY
         self.model = settings.DOUBAO_MODEL
         self.client = Ark(api_key=self.api_key)
         
+        # 初始化RAG组件
+        print("🧠 正在加载嵌入模型 (用于RAG)...")
+        self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
+        print("✅ 嵌入模型加载成功。")
+        
+        print(f"💾 正在加载向量数据库从: {CHROMA_DB_PATH}")
+        self.vectordb = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=self.embeddings)
+        self.retriever = self.vectordb.as_retriever(search_kwargs={"k": 5}) # k=3 表示检索最相关的3个文本块
+        print("✅ 向量数据库加载成功。")
+
     async def generate_response(self, query: str, course_id: str, course_name: str = "") -> str:
         """
-        调用豆包AI生成回答
-        
-        Args:
-            query: 用户问题
-            course_id: 课程ID
-            course_name: 课程名称
-            
-        Returns:
-            AI生成的回答文本
+        调用豆包AI生成回答 (使用RAG)
         """
         try:
-            # 构造课程相关的系统提示
-            system_prompt = self._get_system_prompt(course_id, course_name)
+            # 1. 从向量数据库检索相关上下文
+            print(f"🔍 正在为问题检索相关上下文: '{query}'")
+            retrieved_docs = self.retriever.get_relevant_documents(query)
+            
+            if not retrieved_docs:
+                print("⚠️ 未找到相关上下文，将直接使用原始问题。")
+                context = "没有找到相关背景信息。"
+            else:
+                context = "\n\n---\n\n".join([doc.page_content for doc in retrieved_docs])
+                print(f"✅ 检索到 {len(retrieved_docs)} 条相关上下文。")
+                
+                # --- 新增的调试代码 ---
+                print("\n" + "="*50)
+                print("🔍 以下是检索到的上下文内容送入AI前的内容:")
+                print(context)
+                print("="*50 + "\n")
+                # --- 调试代码结束 ---
+
+            # 2. 构造增强的提示词
+            # ai_service.py 中的 rag_prompt
+            rag_prompt = f"""
+            你是一位严格的课程助教，你的任务是 **只能** 根据下面提供的“书籍内容”来回答用户的问题。
+            - **严格遵守**：完全依据提供的上下文进行回答，不要补充任何你自己的额外知识。
+            - **如果内容相关**：请整合书籍内容，清晰地回答用户的问题。
+            - **如果内容不相关**：请直接回答：“抱歉，我提供的书籍内容中没有找到关于‘{query}’的直接答案。” 不要尝试用通用知识回答。
+
+            --- 书籍内容 ---
+            {context}
+            --- 书籍内容结束 ---
+
+            用户问题: {query}
+            """
             
             # 构造消息列表
             messages = [
                 {
                     "role": "system",
-                    "content": system_prompt
+                    "content": self._get_system_prompt(course_id, course_name) # 可以保留原有的系统提示
                 },
                 {
                     "role": "user", 
-                    "content": query
+                    "content": rag_prompt # 使用增强后的提示词
                 }
             ]
             
-            # 使用同步调用（在线程池中执行以避免阻塞）
+            # 3. 调用大语言模型
+            print("💬 正在调用豆包AI生成回答...")
             loop = asyncio.get_event_loop()
             completion = await loop.run_in_executor(
                 None,
@@ -55,7 +96,6 @@ class DoubaoAIService:
                 )
             )
             
-            # 提取AI回答
             if completion.choices and len(completion.choices) > 0:
                 ai_response = completion.choices[0].message.content
                 logger.info(f"AI回答生成成功，长度: {len(ai_response)}")
@@ -68,8 +108,9 @@ class DoubaoAIService:
             logger.error(f"调用豆包AI失败: {str(e)}")
             return self._get_fallback_response(query, course_id)
     
+    # _get_system_prompt 和 _get_fallback_response 方法保持不变...
     def _get_system_prompt(self, course_id: str, course_name: str = "") -> str:
-        """根据课程获取系统提示词"""
+        # ... (此处代码与您原文件相同，无需改动)
         course_prompts = {
             "software-engineering": """你是一位专业的软件工程课程助教。你精通软件开发生命周期、需求分析、系统设计、编程实践、测试方法、项目管理等软件工程各个方面。请用专业、易懂的方式回答学生的问题，并提供实际的例子和最佳实践。""",
             
@@ -96,9 +137,9 @@ class DoubaoAIService:
 请始终保持耐心、专业和友好的态度。"""
         
         return course_prompts.get(course_id, base_prompt)
-    
+
     def _get_fallback_response(self, query: str, course_id: str) -> str:
-        """当AI调用失败时的备用回答"""
+        # ... (此处代码与您原文件相同，无需改动)
         course_names = {
             "software-engineering": "软件工程",
             "operating-system": "操作系统", 
@@ -119,6 +160,7 @@ class DoubaoAIService:
 4. 向任课老师请教
 
 我稍后会恢复正常服务，届时可以为您提供更详细的解答。"""
+
 
 # 创建全局AI服务实例
 ai_service = DoubaoAIService()

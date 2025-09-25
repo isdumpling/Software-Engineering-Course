@@ -4,7 +4,7 @@ import { Message } from 'element-ui'
 
 const api = axios.create({
   baseURL: 'http://localhost:8000/api',
-  timeout: 60000, // 增加到60秒以支持AI调用
+  timeout: 180000, // 增加到60秒以支持AI调用
   headers: {
     'Content-Type': 'application/json'
   }
