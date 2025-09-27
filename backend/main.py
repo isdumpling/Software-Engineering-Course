@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from database import init_db
 from routers import auth, chat
+from ai_service import get_ai_service  # 导入get_ai_service函数
 import uvicorn
 
 # 创建FastAPI应用
@@ -34,6 +35,13 @@ async def startup_event():
         print("数据库初始化成功！")
     except Exception as e:
         print(f"数据库初始化失败: {e}")
+    
+    # 在应用启动时强制创建新的AI服务实例
+    print("正在初始化AI服务...")
+    import ai_service
+    ai_service.ai_service = get_ai_service()
+    print("✅ AI服务初始化完成！")
+
 
 @app.get("/")
 async def root():

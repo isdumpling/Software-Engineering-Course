@@ -6,16 +6,24 @@ from typing import Optional, Dict, Any
 from config import settings
 import logging
 from volcenginesdkarkruntime import Ark
+import os # 导入 os 模块
 
 # --- RAG 相关导入 ---
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+# 尝试使用新的HuggingFace嵌入
+try:
+    from langchain_huggingface import HuggingFaceEmbeddings
+except ImportError:
+    from langchain_community.embeddings import HuggingFaceEmbeddings
 
 logger = logging.getLogger(__name__)
 
-# --- RAG 配置 ---
-CHROMA_DB_PATH = "chroma_db"
-EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+# --- RAG 配置 (使用绝对路径) ---
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+CHROMA_DB_PATH = os.path.normpath(os.path.join(SCRIPT_DIR, 'chroma_db'))
+# EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
+EMBEDDING_MODEL_NAME = "BAAI/bge-large-zh-v1.5"
+
 
 class DoubaoAIService:
     """火山引擎豆包AI服务 (集成RAG)"""
@@ -29,20 +37,69 @@ class DoubaoAIService:
         print("🧠 正在加载嵌入模型 (用于RAG)...")
         self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL_NAME)
         print("✅ 嵌入模型加载成功。")
+
+        # --- 最终诊断日志 ---
+        print(f"📂 当前工作目录 (CWD): {os.getcwd()}")
+        print(f"💾 正在从绝对路径加载向量数据库: {CHROMA_DB_PATH}")
         
-        print(f"💾 正在加载向量数据库从: {CHROMA_DB_PATH}")
+        if not os.path.exists(CHROMA_DB_PATH):
+            print(f"❌ 错误：向量数据库路径不存在！请确认 '{CHROMA_DB_PATH}' 文件夹存在。")
+            return
+
         self.vectordb = Chroma(persist_directory=CHROMA_DB_PATH, embedding_function=self.embeddings)
+        
+        # 验证加载的文档数量
+        try:
+            doc_count = len(self.vectordb._collection.get()['documents'])
+            print(f"📊 成功加载了 {doc_count} 个文档到向量数据库中。")
+            if doc_count < 100:
+                 print(f"⚠️ 警告：加载的文档数量 ({doc_count}) 过少，可能不是最新的数据库！")
+        except Exception as e:
+            print(f"❌ 验证文档数量时出错: {e}")
+
         self.retriever = self.vectordb.as_retriever(search_kwargs={"k": 5}) # k=3 表示检索最相关的3个文本块
         print("✅ 向量数据库加载成功。")
+
+    def _optimize_query(self, query: str) -> str:
+        """
+        在检索前优化查询语句，提高命中率。
+        """
+        print(f"🔍 原始查询: '{query.strip()}'")
+        
+        # 定义关键词和对应的优化查询
+        optimizations = {
+            "生命周期": "软件开发生命周期 软件过程",
+            "生存周期": "软件开发生命周期 软件过程",
+            "开发阶段": "软件开发生命周期 开发阶段",
+            "几个阶段": "软件开发生命周期 开发阶段",
+            "开发过程": "软件开发生命周期 开发过程",
+            "瀑布模型": "瀑布模型 软件开发模型",
+            "需求分析": "需求分析 需求获取",
+            "测试": "软件测试 测试方法",
+        }
+        
+        # 移除换行符并转换为小写以便匹配
+        normalized_query = query.strip().lower()
+        
+        for keyword, optimal_query in optimizations.items():
+            if keyword in normalized_query:
+                print(f"✨ 检测到关键词 '{keyword}'，优化查询为: '{optimal_query}'")
+                return optimal_query
+        
+        print("... 未进行查询优化。")
+        return query
 
     async def generate_response(self, query: str, course_id: str, course_name: str = "") -> str:
         """
         调用豆包AI生成回答 (使用RAG)
         """
         try:
-            # 1. 从向量数据库检索相关上下文
-            print(f"🔍 正在为问题检索相关上下文: '{query}'")
-            retrieved_docs = self.retriever.get_relevant_documents(query)
+            # 1. 优化查询
+            optimized_query = self._optimize_query(query)
+            
+            # 2. 从向量数据库检索相关上下文
+            print(f"🔍 正在使用优化后的查询检索相关上下文: '{optimized_query.strip()}'")
+            retrieved_docs = self.retriever.invoke(optimized_query)
             
             if not retrieved_docs:
                 print("⚠️ 未找到相关上下文，将直接使用原始问题。")
@@ -163,4 +220,12 @@ class DoubaoAIService:
 
 
 # 创建全局AI服务实例
-ai_service = DoubaoAIService()
+# ai_service = DoubaoAIService()
+
+# 改为函数，以便在应用启动时调用
+def get_ai_service():
+    print("🚀 正在创建全新的AI服务实例...")
+    return DoubaoAIService()
+
+# 全局变量，但在启动时才初始化
+ai_service = None

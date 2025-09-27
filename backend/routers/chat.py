@@ -9,7 +9,7 @@ from schemas import (
     ChatSessionResponse, MessageResponse
 )
 from auth import get_current_user
-from ai_service import ai_service
+import ai_service
 import uuid
 from datetime import datetime
 
@@ -50,8 +50,36 @@ async def send_message(
         )
         db.add(user_message)
         
+        # --- 终极诊断步骤 ---
+        print("\n" + "="*80)
+        print("🔍 [实时诊断] 正在检查聊天路由中的 ai_service 状态...")
+        
+        if ai_service.ai_service is None:
+            print("❌ [实时诊断] 致命错误: ai_service.ai_service 为 None!")
+        else:
+            print("✅ [实时诊断] ai_service.ai_service 实例存在。")
+            try:
+                vectordb_instance = ai_service.ai_service.vectordb
+                doc_count = len(vectordb_instance._collection.get()['documents'])
+                print(f"📊 [实时诊断] vectordb 中的文档数量: {doc_count}")
+                if doc_count < 100:
+                    print("⚠️ [实时诊断] 警告: 检测到文档数量过少！")
+                
+                print("🧪 [实时诊断] 正在执行测试查询 '软件生存周期'...")
+                test_retriever = vectordb_instance.as_retriever(search_kwargs={"k": 3})
+                test_results = test_retriever.invoke("软件生存周期")
+                
+                print("📝 [实时诊断] 测试查询结果:")
+                for i, res in enumerate(test_results):
+                    print(f"  -> 结果 {i+1}: {res.page_content[:120]}...")
+            except Exception as e:
+                print(f"❌ [实时诊断] 检查过程中出错: {e}")
+        
+        print("="*80 + "\n")
+        # --- 诊断结束 ---
+        
         # 调用豆包AI生成回答
-        ai_response = await ai_service.generate_response(
+        ai_response = await ai_service.ai_service.generate_response(
             query=message.query,
             course_id=message.course_id,
             course_name=message.course_name
