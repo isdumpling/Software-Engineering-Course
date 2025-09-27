@@ -27,7 +27,8 @@ class Settings:
     SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     
     # 火山引擎豆包AI配置
-    ARK_API_KEY = os.getenv("ARK_API_KEY", "a8906414-7512-4cfe-9d8e-6d31bed18e08")
+    # ARK_API_KEY = os.getenv("ARK_API_KEY", "a8906414-7512-4cfe-9d8e-6d31bed18e08")
+    ARK_API_KEY = os.getenv("ARK_API_KEY", "9454a38f-53ac-4330-93eb-fd395ad910cc")
     DOUBAO_MODEL = os.getenv("DOUBAO_MODEL", "doubao-seed-1-6-thinking-250715")  # 使用您测试成功的模型
 
 settings = Settings()
