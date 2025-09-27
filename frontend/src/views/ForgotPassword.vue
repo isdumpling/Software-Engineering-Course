@@ -1,25 +1,27 @@
 <template>
-  <div class="forgot-password-container">
-    <div class="forgot-password-form">
-      <div class="forgot-password-header">
-        <i class="el-icon-key forgot-icon"></i>
-        <h1>找回密码</h1>
-        <p>请输入您的邮箱地址，我们将向您发送重置密码的链接</p>
+  <div class="fp-container">
+    <div class="fp-box">
+      <div class="fp-header">
+        <i class="el-icon-key fp-icon"></i>
+        <h1>找回您的密码</h1>
+        <p v-if="!emailSent">请输入与您账户关联的电子邮箱地址</p>
       </div>
       
       <el-form 
+        v-if="!emailSent"
         :model="forgotForm" 
         :rules="forgotRules" 
         ref="forgotForm" 
         label-width="0px"
         size="medium"
-        v-if="!emailSent"
+        class="fp-form"
       >
         <el-form-item prop="email">
           <el-input
             v-model="forgotForm.email"
-            placeholder="请输入注册时使用的邮箱"
+            placeholder="电子邮箱"
             prefix-icon="el-icon-message"
+            @keyup.enter.native="handleForgotPassword"
           ></el-input>
         </el-form-item>
         
@@ -28,7 +30,7 @@
             type="primary" 
             @click="handleForgotPassword"
             :loading="loading"
-            class="forgot-button"
+            class="fp-button"
           >
             {{ loading ? '发送中...' : '发送重置链接' }}
           </el-button>
@@ -41,26 +43,26 @@
           <i class="el-icon-circle-check"></i>
         </div>
         <h3>邮件已发送</h3>
-        <p>我们已向 <strong>{{ forgotForm.email }}</strong> 发送了重置密码的邮件</p>
-        <p class="help-text">请查收邮件并点击其中的链接来重置您的密码</p>
-        <p class="help-text">如果您没有收到邮件，请检查垃圾邮件文件夹</p>
+        <p>我们已向 <strong>{{ forgotForm.email }}</strong> 发送了重置密码的邮件，请注意查收。</p>
+        <p class="help-text">如果没有收到，请检查您的垃圾邮件文件夹。</p>
         
         <div class="resend-section">
           <el-button 
             type="text" 
             @click="resendEmail"
             :loading="resendLoading"
+            :disabled="resendLoading"
             class="resend-button"
           >
-            {{ resendLoading ? '重新发送中...' : '重新发送邮件' }}
+            {{ resendLoading ? '正在重新发送...' : '重新发送邮件' }}
           </el-button>
         </div>
       </div>
       
-      <div class="forgot-password-footer">
+      <div class="fp-footer">
         <router-link to="/login" class="back-link">
           <i class="el-icon-arrow-left"></i>
-          返回登录
+          <span>返回登录</span>
         </router-link>
       </div>
     </div>
@@ -130,59 +132,65 @@ export default {
 </script>
 
 <style scoped>
-.forgot-password-container {
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+.fp-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #f0f2f5;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 20px;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
-.forgot-password-form {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 40px;
+.fp-box {
+  background: #fff;
+  padding: 40px 50px;
   border-radius: 10px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 450px;
-  backdrop-filter: blur(10px);
+  max-width: 480px;
+  text-align: center;
 }
 
-.forgot-password-header {
-  text-align: center;
+.fp-header {
   margin-bottom: 30px;
 }
 
-.forgot-icon {
+.fp-icon {
   font-size: 48px;
-  color: #409EFF;
+  color: #5A8DFF;
   margin-bottom: 15px;
 }
 
-.forgot-password-header h1 {
+.fp-header h1 {
   color: #333;
   margin: 0 0 10px 0;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
 }
 
-.forgot-password-header p {
-  color: #666;
+.fp-header p {
+  color: #999;
   margin: 0;
   font-size: 14px;
   line-height: 1.5;
 }
 
-.forgot-button {
+.fp-form {
+  margin-top: 20px;
+}
+
+.fp-button {
   width: 100%;
   height: 45px;
   font-size: 16px;
   font-weight: 500;
+  letter-spacing: 2px;
 }
 
 .success-message {
-  text-align: center;
   padding: 20px 0;
 }
 
@@ -210,77 +218,99 @@ export default {
 }
 
 .help-text {
-  font-size: 12px !important;
+  font-size: 13px !important;
   color: #999 !important;
 }
 
 .resend-section {
-  margin-top: 20px;
-  padding-top: 15px;
+  margin-top: 25px;
+  padding-top: 20px;
   border-top: 1px solid #f0f0f0;
 }
 
 .resend-button {
-  color: #409EFF;
+  color: #5A8DFF;
   font-size: 14px;
+  font-weight: 500;
 }
 
 .resend-button:hover {
-  text-decoration: underline;
+  color: #73a0ff;
 }
 
-.forgot-password-footer {
+.fp-footer {
   text-align: center;
-  margin-top: 20px;
+  margin-top: 30px;
   padding-top: 20px;
-  border-top: 1px solid #f0f0f0;
+  border-top: 1px solid #eee;
 }
 
 .back-link {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  color: #409EFF;
+  gap: 6px;
+  color: #5A8DFF;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
+  transition: color 0.3s;
 }
 
 .back-link:hover {
-  text-decoration: underline;
+  color: #333;
 }
 
 /* Element UI 样式覆盖 */
 .el-form-item {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
 }
 
 .el-input__inner {
-  height: 45px;
+  height: 48px;
+  line-height: 48px;
   border-radius: 6px;
+  background-color: #f7f7f7;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s;
+}
+
+.el-input__inner:focus {
+  background-color: #fff;
+  border-color: #5A8DFF;
+  box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.2);
+}
+
+.el-input__prefix {
+  line-height: 48px;
+  color: #999;
+  left: 15px;
 }
 
 .el-button--primary {
-  background-color: #409EFF;
-  border-color: #409EFF;
+  background-color: #5A8DFF;
+  border-color: #5A8DFF;
+  border-radius: 6px;
+  transition: all 0.3s;
 }
 
 .el-button--primary:hover {
-  background-color: #66b1ff;
-  border-color: #66b1ff;
+  background-color: #73a0ff;
+  border-color: #73a0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(90, 141, 255, 0.3);
 }
 
 /* 响应式设计 */
 @media (max-width: 480px) {
-  .forgot-password-form {
-    padding: 30px 20px;
+  .fp-box {
+    padding: 30px 25px;
   }
   
-  .forgot-password-header h1 {
-    font-size: 24px;
+  .fp-header h1 {
+    font-size: 22px;
   }
   
-  .forgot-icon {
+  .fp-icon {
     font-size: 40px;
   }
 }

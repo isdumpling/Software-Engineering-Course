@@ -1,12 +1,21 @@
 <template>
-  <div class="reset-password-container">
-    <div class="reset-password-form">
+  <div class="rp-container">
+    <div class="rp-box">
+      <!-- Loading/Validating Token -->
+      <div v-if="isValidToken === null" class="status-section">
+        <div class="status-icon">
+          <i class="el-icon-loading"></i>
+        </div>
+        <h2>正在验证链接...</h2>
+        <p>请稍候，我们正在检查您的密码重置链接的有效性。</p>
+      </div>
+
       <!-- 重置密码表单 -->
-      <div v-if="!resetComplete && isValidToken" class="reset-form-section">
-        <div class="reset-password-header">
-          <i class="el-icon-refresh-left reset-icon"></i>
-          <h1>重置密码</h1>
-          <p>请设置您的新密码</p>
+      <div v-if="!resetComplete && isValidToken === true" class="reset-form-section">
+        <div class="rp-header">
+          <i class="el-icon-refresh-left rp-icon"></i>
+          <h1>设置新密码</h1>
+          <p>为了保障您的账户安全，请设置一个强密码</p>
         </div>
         
         <el-form 
@@ -20,7 +29,7 @@
             <el-input
               v-model="resetForm.password"
               type="password"
-              placeholder="请输入新密码"
+              placeholder="新密码"
               prefix-icon="el-icon-lock"
               show-password
             ></el-input>
@@ -30,9 +39,10 @@
             <el-input
               v-model="resetForm.confirmPassword"
               type="password"
-              placeholder="请确认新密码"
-              prefix-icon="el-icon-lock"
+              placeholder="确认新密码"
+              prefix-icon="el-icon-check"
               show-password
+              @keyup.enter.native="handleResetPassword"
             ></el-input>
           </el-form-item>
           
@@ -41,23 +51,23 @@
               type="primary" 
               @click="handleResetPassword"
               :loading="loading"
-              class="reset-button"
+              class="rp-button"
             >
-              {{ loading ? '重置中...' : '重置密码' }}
+              {{ loading ? '正在重置...' : '确认并重置密码' }}
             </el-button>
           </el-form-item>
         </el-form>
       </div>
 
       <!-- 重置成功 -->
-      <div v-if="resetComplete" class="success-section">
-        <div class="success-icon">
+      <div v-if="resetComplete" class="status-section">
+        <div class="status-icon success">
           <i class="el-icon-circle-check"></i>
         </div>
         <h2>密码重置成功</h2>
-        <p>您的密码已成功重置，请使用新密码登录</p>
+        <p>您现在可以使用新密码登录您的账户了。</p>
         
-        <div class="success-actions">
+        <div class="actions">
           <el-button type="primary" @click="goToLogin" class="login-button">
             立即登录
           </el-button>
@@ -65,19 +75,18 @@
       </div>
 
       <!-- 无效或过期的令牌 -->
-      <div v-if="!isValidToken" class="error-section">
-        <div class="error-icon">
+      <div v-if="isValidToken === false" class="status-section">
+        <div class="status-icon error">
           <i class="el-icon-circle-close"></i>
         </div>
         <h2>链接无效或已过期</h2>
-        <p>很抱歉，此重置密码链接无效或已过期</p>
-        <p class="help-text">请重新申请密码重置</p>
+        <p>抱歉，此链接无法用于重置密码。请返回并重新申请。</p>
         
-        <div class="error-actions">
+        <div class="actions">
           <el-button type="primary" @click="goToForgotPassword">
-            重新申请重置
+            重新申请
           </el-button>
-          <el-button type="text" @click="goToLogin">
+          <el-button @click="goToLogin">
             返回登录
           </el-button>
         </div>
@@ -116,7 +125,7 @@ export default {
       },
       loading: false,
       resetComplete: false,
-      isValidToken: true,
+      isValidToken: null, // null: validating, true: valid, false: invalid
       token: ''
     }
   },
@@ -182,170 +191,141 @@ export default {
 </script>
 
 <style scoped>
-.reset-password-container {
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+.rp-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background-color: #f0f2f5;
   display: flex;
   justify-content: center;
   align-items: center;
   padding: 20px;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
-.reset-password-form {
-  background: rgba(255, 255, 255, 0.95);
-  padding: 40px;
+.rp-box {
+  background: #fff;
+  padding: 40px 50px;
   border-radius: 10px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
   width: 100%;
-  max-width: 450px;
-  backdrop-filter: blur(10px);
+  max-width: 480px;
+  text-align: center;
 }
 
-.reset-password-header {
-  text-align: center;
+.rp-header {
   margin-bottom: 30px;
 }
 
-.reset-icon {
+.rp-icon {
   font-size: 48px;
-  color: #409EFF;
+  color: #5A8DFF;
   margin-bottom: 15px;
 }
 
-.reset-password-header h1 {
+.rp-header h1 {
   color: #333;
   margin: 0 0 10px 0;
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 26px;
+  font-weight: 700;
 }
 
-.reset-password-header p {
-  color: #666;
+.rp-header p {
+  color: #999;
   margin: 0;
   font-size: 14px;
 }
 
-.reset-button {
+.rp-button {
   width: 100%;
   height: 45px;
   font-size: 16px;
   font-weight: 500;
+  letter-spacing: 1px;
 }
 
-/* 成功状态 */
-.success-section {
-  text-align: center;
+/* 状态通用样式 */
+.status-section {
+  padding: 20px 0;
 }
 
-.success-icon i {
+.status-icon {
+  margin-bottom: 20px;
   font-size: 64px;
+}
+.status-icon .el-icon-loading {
+  color: #5A8DFF;
+}
+.status-icon.success i {
   color: #67C23A;
-  margin-bottom: 20px;
 }
-
-.success-section h2 {
-  color: #333;
-  margin: 0 0 15px 0;
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.success-section p {
-  color: #666;
-  margin: 0 0 20px 0;
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.success-actions {
-  margin-top: 30px;
-}
-
-.login-button {
-  width: 100%;
-  height: 45px;
-  font-size: 16px;
-  font-weight: 500;
-}
-
-/* 错误状态 */
-.error-section {
-  text-align: center;
-}
-
-.error-icon i {
-  font-size: 64px;
+.status-icon.error i {
   color: #F56C6C;
-  margin-bottom: 20px;
 }
 
-.error-section h2 {
+.status-section h2 {
   color: #333;
   margin: 0 0 15px 0;
   font-size: 24px;
   font-weight: 600;
 }
 
-.error-section p {
+.status-section p {
   color: #666;
-  margin: 0 0 10px 0;
+  margin: 0 0 30px 0;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
-.help-text {
-  font-size: 12px !important;
-  color: #999 !important;
-  margin-bottom: 20px !important;
-}
-
-.error-actions {
+.actions {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 30px;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
 }
 
-.error-actions .el-button {
-  height: 40px;
+.actions .el-button {
+  width: 140px;
+  height: 42px;
 }
 
 /* Element UI 样式覆盖 */
 .el-form-item {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
 }
 
 .el-input__inner {
-  height: 45px;
+  height: 48px;
+  line-height: 48px;
   border-radius: 6px;
+  background-color: #f7f7f7;
+  border: 1px solid #e0e0e0;
+  transition: all 0.3s;
+}
+
+.el-input__inner:focus {
+  background-color: #fff;
+  border-color: #5A8DFF;
+  box-shadow: 0 0 0 2px rgba(90, 141, 255, 0.2);
+}
+
+.el-input__prefix {
+  line-height: 48px;
+  color: #999;
+  left: 15px;
 }
 
 .el-button--primary {
-  background-color: #409EFF;
-  border-color: #409EFF;
+  background-color: #5A8DFF;
+  border-color: #5A8DFF;
+  border-radius: 6px;
+  transition: all 0.3s;
 }
 
 .el-button--primary:hover {
-  background-color: #66b1ff;
-  border-color: #66b1ff;
-}
-
-/* 响应式设计 */
-@media (max-width: 480px) {
-  .reset-password-form {
-    padding: 30px 20px;
-  }
-  
-  .reset-password-header h1,
-  .success-section h2,
-  .error-section h2 {
-    font-size: 22px;
-  }
-  
-  .reset-icon,
-  .success-icon i,
-  .error-icon i {
-    font-size: 48px;
-  }
+  background-color: #73a0ff;
+  border-color: #73a0ff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(90, 141, 255, 0.3);
 }
 </style>

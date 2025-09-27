@@ -1,49 +1,51 @@
 <template>
   <div class="home-container">
-    <div class="welcome-section">
-      <h1>欢迎，{{ username }}！</h1>
-      <p>选择一门课程开始学习吧</p>
+    <div class="home-header">
+      <div class="header-left">
+        <h1>欢迎回来，{{ username }}!</h1>
+        <p>今天想学习哪一门课程？</p>
+      </div>
+      <div class="header-right">
+        <el-button type="primary" icon="el-icon-time" @click="$router.push('/history')">
+          查看历史记录
+        </el-button>
+      </div>
     </div>
     
     <div class="courses-section">
+      <div class="section-header">
+        <h2>我的课程</h2>
+        <p>选择一门课程开始您的智能学习之旅</p>
+      </div>
       <div class="courses-grid">
         <div 
           v-for="course in courses" 
           :key="course.id"
           class="course-card"
           @click="enterCourse(course)"
+          :style="{'--course-color': course.color}"
         >
-          <div class="course-icon">
-            <i :class="course.icon"></i>
-          </div>
-          <div class="course-info">
-            <h3>{{ course.name }}</h3>
-            <p>{{ course.description }}</p>
-            <div class="course-stats">
-              <span class="chat-count">
-                <i class="el-icon-chat-dot-round"></i>
-                {{ getChatCountForCourse(course.id) }} 次对话
-              </span>
+          <div class="card-content">
+            <div class="course-icon">
+              <i :class="course.icon"></i>
+            </div>
+            <div class="course-info">
+              <h3>{{ course.name }}</h3>
+              <p>{{ course.description }}</p>
             </div>
           </div>
-          <div class="course-enter">
-            <i class="el-icon-arrow-right"></i>
+          <div class="card-footer">
+            <span class="chat-count">
+              <i class="el-icon-chat-dot-round"></i>
+              {{ getChatCountForCourse(course.id) }} 次对话
+            </span>
+            <div class="course-enter">
+              <span>开始学习</span>
+              <i class="el-icon-arrow-right"></i>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    
-    <div class="quick-actions">
-      <el-card class="action-card">
-        <div class="action-content">
-          <i class="el-icon-time action-icon"></i>
-          <div class="action-info">
-            <h4>历史记录</h4>
-            <p>查看所有对话记录</p>
-          </div>
-          <el-button type="text" @click="$router.push('/history')">查看</el-button>
-        </div>
-      </el-card>
     </div>
   </div>
 </template>
@@ -143,64 +145,96 @@ export default {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
 .home-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 40px 20px;
+  padding: 30px;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
-.welcome-section {
-  text-align: center;
-  margin-bottom: 50px;
+.home-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #fff;
+  padding: 25px 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  margin-bottom: 40px;
 }
 
-.welcome-section h1 {
-  font-size: 36px;
+.header-left h1 {
+  font-size: 24px;
   color: #333;
-  margin: 0 0 10px 0;
-  font-weight: 600;
+  margin: 0 0 5px 0;
+  font-weight: 700;
 }
 
-.welcome-section p {
-  font-size: 18px;
-  color: #666;
+.header-left p {
+  font-size: 14px;
+  color: #999;
   margin: 0;
 }
 
+/* Courses Section */
 .courses-section {
-  margin-bottom: 50px;
+  margin-bottom: 40px;
+}
+
+.section-header {
+  margin-bottom: 25px;
+}
+
+.section-header h2 {
+  font-size: 22px;
+  color: #333;
+  font-weight: 700;
+  margin: 0 0 5px 0;
+}
+
+.section-header p {
+  font-size: 14px;
+  color: #999;
 }
 
 .courses-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
 }
 
 .course-card {
   background: white;
   border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
-  align-items: center;
-  gap: 20px;
-  border: 2px solid transparent;
+  flex-direction: column;
+  border-left: 5px solid var(--course-color, #409EFF);
+  overflow: hidden;
 }
 
 .course-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  border-color: #409EFF;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+}
+
+.card-content {
+  padding: 25px;
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-grow: 1;
 }
 
 .course-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #409EFF, #66b1ff);
+  width: 50px;
+  height: 50px;
+  border-radius: 10px;
+  background-color: var(--course-color, #409EFF);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -208,120 +242,77 @@ export default {
 }
 
 .course-icon i {
-  font-size: 28px;
+  font-size: 24px;
   color: white;
 }
 
-.course-info {
-  flex: 1;
-}
-
 .course-info h3 {
-  font-size: 20px;
+  font-size: 18px;
   color: #333;
   margin: 0 0 8px 0;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .course-info p {
   font-size: 14px;
-  color: #666;
-  margin: 0 0 12px 0;
-  line-height: 1.4;
+  color: #777;
+  margin: 0;
+  line-height: 1.5;
 }
 
-.course-stats {
+.card-footer {
+  padding: 15px 25px;
+  background-color: #f9fafb;
+  border-top: 1px solid #f0f0f0;
   display: flex;
-  gap: 15px;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .chat-count {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #999;
+  gap: 6px;
+  font-size: 13px;
+  color: #888;
 }
 
 .chat-count i {
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .course-enter {
-  width: 24px;
-  height: 24px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: #999;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--course-color, #409EFF);
   transition: all 0.3s ease;
 }
 
 .course-card:hover .course-enter {
-  color: #409EFF;
-  transform: translateX(4px);
+  gap: 8px;
 }
 
-.quick-actions {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+.course-enter i {
+  transition: transform 0.3s ease;
+}
+.course-card:hover .course-enter i {
+  transform: translateX(3px);
 }
 
-.action-card {
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.action-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-}
-
-.action-content {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.action-icon {
-  font-size: 32px;
-  color: #409EFF;
-}
-
-.action-info {
-  flex: 1;
-}
-
-.action-info h4 {
-  font-size: 16px;
-  color: #333;
-  margin: 0 0 4px 0;
-  font-weight: 600;
-}
-
-.action-info p {
-  font-size: 14px;
-  color: #666;
-  margin: 0;
-}
 
 /* 响应式设计 */
 @media (max-width: 768px) {
+  .home-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+
   .courses-grid {
     grid-template-columns: 1fr;
-  }
-  
-  .course-card {
-    padding: 20px;
-  }
-  
-  .welcome-section h1 {
-    font-size: 28px;
-  }
-  
-  .welcome-section p {
-    font-size: 16px;
   }
 }
 </style>

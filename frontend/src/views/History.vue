@@ -1,11 +1,17 @@
 <template>
   <div class="history-container">
     <div class="history-header">
-      <h1>对话历史</h1>
+      <div class="header-left">
+        <i class="el-icon-time header-icon"></i>
+        <div class="header-text">
+          <h1>对话历史</h1>
+          <p>在这里查看、搜索和管理您所有的学习对话</p>
+        </div>
+      </div>
       <div class="header-actions">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索对话内容..."
+          placeholder="搜索标题、课程或内容..."
           prefix-icon="el-icon-search"
           size="medium"
           class="search-input"
@@ -13,9 +19,10 @@
         ></el-input>
         <el-select 
           v-model="selectedCourse" 
-          placeholder="选择课程" 
+          placeholder="筛选课程" 
           size="medium"
           clearable
+          class="course-select"
         >
           <el-option label="全部课程" value=""></el-option>
           <el-option 
@@ -31,11 +38,12 @@
     <div class="history-content">
       <div v-if="filteredHistories.length === 0" class="empty-state">
         <div class="empty-content">
-          <i class="el-icon-chat-dot-square"></i>
-          <h3>暂无对话记录</h3>
-          <p>开始与AI助教对话，创建您的第一个学习记录吧！</p>
-          <el-button type="primary" @click="$router.push('/home')">
-            选择课程开始对话
+          <i class="el-icon-chat-line-square"></i>
+          <h3>{{ searchKeyword || selectedCourse ? '没有找到匹配的记录' : '暂无对话记录' }}</h3>
+          <p v-if="!searchKeyword && !selectedCourse">开始一段对话来创建您的第一条历史记录吧！</p>
+          <el-button v-if="!searchKeyword && !selectedCourse" type="primary" plain @click="$router.push('/home')">
+            <i class="el-icon-plus"></i>
+            开始新的学习
           </el-button>
         </div>
       </div>
@@ -48,18 +56,17 @@
           @click="continueChat(chat)"
         >
           <div class="card-header">
-            <div class="course-tag">
-              <i class="el-icon-collection-tag"></i>
+            <div class="course-tag" :style="getCourseColor(chat.courseId)">
               {{ chat.courseName }}
             </div>
             <div class="card-actions" @click.stop>
-              <el-dropdown @command="handleCommand">
+              <el-dropdown @command="handleCommand" trigger="click">
                 <span class="el-dropdown-link">
                   <i class="el-icon-more"></i>
                 </span>
                 <el-dropdown-menu slot="dropdown">
-                  <el-dropdown-item :command="{action: 'continue', chat}">继续对话</el-dropdown-item>
-                  <el-dropdown-item :command="{action: 'delete', chat}" class="danger">删除记录</el-dropdown-item>
+                  <el-dropdown-item :command="{action: 'continue', chat}" icon="el-icon-chat-dot-round">继续对话</el-dropdown-item>
+                  <el-dropdown-item :command="{action: 'delete', chat}" icon="el-icon-delete" class="danger">删除记录</el-dropdown-item>
                 </el-dropdown-menu>
               </el-dropdown>
             </div>
@@ -68,14 +75,15 @@
           <div class="card-body">
             <h3 class="chat-title">{{ chat.title }}</h3>
             <div class="chat-preview">
-              <div class="message-preview">
-                <span class="message-role">我:</span>
-                <span class="message-text">{{ getFirstUserMessage(chat) }}</span>
-              </div>
-              <div v-if="getFirstAIMessage(chat)" class="message-preview ai-message">
-                <span class="message-role">AI:</span>
-                <span class="message-text">{{ getFirstAIMessage(chat) }}</span>
-              </div>
+              <p v-if="getLastMessage(chat)">
+                <span class="message-role" :class="getLastMessage(chat).role">
+                  {{ getLastMessage(chat).role === 'user' ? '你' : 'AI' }}:
+                </span>
+                <span class="message-text">{{ getLastMessage(chat).content }}</span>
+              </p>
+               <p v-else class="no-message-preview">
+                点击查看对话详情
+              </p>
             </div>
           </div>
 
@@ -83,14 +91,15 @@
             <div class="chat-stats">
               <span class="stat-item">
                 <i class="el-icon-chat-dot-round"></i>
-                {{ chat.messages.length }} 条消息
+                {{ chat.message_count || chat.messages?.length || 0 }} 条消息
               </span>
               <span class="stat-item">
                 <i class="el-icon-time"></i>
-                {{ formatDate(chat.updatedAt) }}
+                更新于 {{ formatDate(chat.updatedAt) }}
               </span>
             </div>
             <div class="continue-hint">
+              <span>查看</span>
               <i class="el-icon-arrow-right"></i>
             </div>
           </div>
@@ -100,6 +109,7 @@
       <!-- 分页 -->
       <div v-if="filteredHistories.length > pageSize" class="pagination-container">
         <el-pagination
+          background
           @current-change="handlePageChange"
           :current-page="currentPage"
           :page-size="pageSize"
@@ -119,19 +129,15 @@ export default {
       searchKeyword: '',
       selectedCourse: '',
       currentPage: 1,
-      pageSize: 10,
+      pageSize: 9,
       courseOptions: [
-        { id: 'software-engineering', name: '软件工程' },
-        { id: 'operating-system', name: '操作系统' },
-        { id: 'computer-network', name: '计算机网络' },
-        { id: 'data-structure', name: '数据结构' },
-        { id: 'database', name: '数据库系统' },
-        { id: 'compiler', name: '编译原理' }
-      ]
-    }
-  },
-  data() {
-    return {
+        { id: 'software-engineering', name: '软件工程', color: '#409EFF' },
+        { id: 'operating-system', name: '操作系统', color: '#67C23A' },
+        { id: 'computer-network', name: '计算机网络', color: '#E6A23C' },
+        { id: 'data-structure', name: '数据结构', color: '#F56C6C' },
+        { id: 'database', name: '数据库系统', color: '#909399' },
+        { id: 'compiler', name: '编译原理', color: '#9C27B0' }
+      ],
       serverHistories: [] // 存储从服务器获取的历史记录
     }
   },
@@ -164,7 +170,7 @@ export default {
         filtered = filtered.filter(chat => {
           return chat.title.toLowerCase().includes(keyword) ||
                  chat.courseName.toLowerCase().includes(keyword) ||
-                 chat.messages.some(msg => msg.content.toLowerCase().includes(keyword))
+                 (chat.messages && chat.messages.some(msg => msg.content.toLowerCase().includes(keyword)))
         })
       }
       
@@ -184,8 +190,10 @@ export default {
   methods: {
     async loadServerHistories() {
       try {
-        // 获取所有聊天历史
+        console.log('正在加载服务器历史记录...')
+        // 获取所有聊天历史（不传course_id获取所有课程）
         const histories = await this.$api.chatAPI.getChatHistory()
+        console.log('服务器返回的历史记录:', histories)
         
         // 转换数据格式
         this.serverHistories = histories.map(history => ({
@@ -194,12 +202,16 @@ export default {
           courseName: history.course_name,
           title: history.title,
           messages: [], // 消息需要单独加载
+          message_count: history.message_count, // 添加消息数量
           createdAt: history.created_at,
           updatedAt: history.updated_at
         }))
         
+        console.log('处理后的历史记录:', this.serverHistories)
+        
       } catch (error) {
         console.error('加载服务器历史记录失败:', error)
+        this.$message.error('加载历史记录失败，显示本地数据')
         // 如果失败，使用本地数据
       }
     },
@@ -222,10 +234,11 @@ export default {
     },
     
     async deleteChat(chat) {
-      this.$confirm('确定要删除这条对话记录吗？', '确认删除', {
-        confirmButtonText: '删除',
+      this.$confirm('此操作将永久删除该对话记录, 是否继续?', '警告', {
+        confirmButtonText: '确定删除',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
+        center: true
       }).then(async () => {
         try {
           // 调用API删除
@@ -246,14 +259,15 @@ export default {
       }).catch(() => {})
     },
     
-    getFirstUserMessage(chat) {
-      const userMsg = chat.messages.find(msg => msg.role === 'user')
-      return userMsg ? this.truncateText(userMsg.content, 50) : '无消息'
-    },
-    
-    getFirstAIMessage(chat) {
-      const aiMsg = chat.messages.find(msg => msg.role === 'assistant')
-      return aiMsg ? this.truncateText(aiMsg.content, 80) : ''
+    getLastMessage(chat) {
+      if (chat.messages && chat.messages.length > 0) {
+        const lastMsg = chat.messages[chat.messages.length - 1];
+        return {
+          role: lastMsg.role,
+          content: this.truncateText(lastMsg.content, 100)
+        };
+      }
+      return null;
     },
     
     truncateText(text, maxLength) {
@@ -276,16 +290,34 @@ export default {
     
     handlePageChange(page) {
       this.currentPage = page
+      window.scrollTo(0, 0);
+    },
+
+    getCourseColor(courseId) {
+      const course = this.courseOptions.find(c => c.id === courseId);
+      if (course) {
+        return { 
+          '--course-bg-color': `${course.color}1A`, 
+          '--course-text-color': course.color 
+        };
+      }
+      return {
+        '--course-bg-color': '#f0f0f0',
+        '--course-text-color': '#666'
+      };
     }
   }
 }
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
 .history-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 30px 20px;
+  padding: 30px;
+  font-family: 'Noto Sans SC', sans-serif;
 }
 
 .history-header {
@@ -295,13 +327,34 @@ export default {
   margin-bottom: 30px;
   flex-wrap: wrap;
   gap: 20px;
+  background: #fff;
+  padding: 25px 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
-.history-header h1 {
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.header-icon {
   font-size: 32px;
+  color: #5A8DFF;
+}
+
+.header-text h1 {
+  font-size: 24px;
+  font-weight: 700;
   color: #333;
+  margin: 0 0 5px 0;
+}
+
+.header-text p {
+  font-size: 14px;
+  color: #999;
   margin: 0;
-  font-weight: 600;
 }
 
 .header-actions {
@@ -310,214 +363,181 @@ export default {
   align-items: center;
 }
 
-.search-input {
-  width: 250px;
-}
+.search-input { width: 220px; }
+.course-select { width: 150px; }
 
 .empty-state {
-  height: 400px;
+  min-height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #fff;
+  border-radius: 12px;
 }
 
 .empty-content {
   text-align: center;
-  color: #999;
+  color: #aaa;
 }
 
 .empty-content i {
   font-size: 64px;
-  color: #ddd;
   margin-bottom: 20px;
 }
 
 .empty-content h3 {
-  font-size: 20px;
-  color: #333;
+  font-size: 18px;
+  font-weight: 500;
+  color: #555;
   margin: 0 0 10px 0;
 }
 
 .empty-content p {
   font-size: 14px;
-  margin: 0 0 20px 0;
+  margin: 0 0 25px 0;
 }
 
 .history-list {
   display: grid;
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 25px;
 }
 
 .history-card {
   background: white;
   border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   cursor: pointer;
   transition: all 0.3s ease;
-  border: 2px solid transparent;
+  display: flex;
+  flex-direction: column;
 }
 
 .history-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  border-color: #409EFF;
+  transform: translateY(-5px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 15px;
+  padding: 15px 20px;
+  border-bottom: 1px solid #f0f2f5;
 }
 
 .course-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: #f0f9ff;
-  color: #409EFF;
+  background: var(--course-bg-color, #f0f9ff);
+  color: var(--course-text-color, #409EFF);
   padding: 4px 12px;
   border-radius: 16px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
 }
 
-.card-actions {
+.card-actions .el-dropdown-link {
   color: #999;
   cursor: pointer;
-}
-
-.card-actions:hover {
-  color: #409EFF;
-}
-
-.el-dropdown-link {
-  cursor: pointer;
   padding: 5px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+.card-actions .el-dropdown-link:hover {
+  background-color: #f5f5f5;
+  color: #5A8DFF;
 }
 
 .card-body {
-  margin-bottom: 20px;
+  padding: 20px;
+  flex-grow: 1;
 }
 
 .chat-title {
-  font-size: 18px;
+  font-size: 17px;
+  font-weight: 600;
   color: #333;
   margin: 0 0 15px 0;
-  font-weight: 600;
   line-height: 1.4;
+  height: 48px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
-.chat-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.message-preview {
-  display: flex;
-  gap: 8px;
+.chat-preview p {
   font-size: 14px;
-  line-height: 1.5;
-}
-
-.message-role {
   color: #666;
+  line-height: 1.6;
+  margin: 0;
+  height: 44px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.chat-preview .no-message-preview {
+  color: #999;
+  font-style: italic;
+}
+.chat-preview .message-role {
   font-weight: 500;
-  flex-shrink: 0;
-  min-width: 30px;
+  margin-right: 5px;
 }
+.chat-preview .message-role.user { color: #5A8DFF; }
+.chat-preview .message-role.assistant { color: #888; }
 
-.message-text {
-  color: #333;
-  flex: 1;
-}
-
-.ai-message .message-role {
-  color: #409EFF;
-}
-
-.ai-message .message-text {
-  color: #666;
-}
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 15px;
-  border-top: 1px solid #f0f0f0;
+  padding: 15px 20px;
+  border-top: 1px solid #f0f2f5;
+  background-color: #fcfdfe;
 }
 
 .chat-stats {
   display: flex;
-  gap: 20px;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .stat-item {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 12px;
   color: #999;
 }
 
 .continue-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
   color: #999;
   transition: all 0.3s ease;
 }
 
 .history-card:hover .continue-hint {
-  color: #409EFF;
-  transform: translateX(4px);
+  color: #5A8DFF;
+  gap: 8px;
 }
 
 .pagination-container {
   display: flex;
   justify-content: center;
-  margin-top: 30px;
+  margin-top: 40px;
 }
 
-/* 下拉菜单危险项样式 */
-::v-deep .danger {
-  color: #f56c6c;
-}
+.danger { color: #f56c6c; }
+.danger:hover { color: #f56c6c; background-color: #fef0f0; }
 
-::v-deep .danger:hover {
-  background-color: #fef0f0;
-  color: #f56c6c;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
-  .history-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  
-  .header-actions {
-    flex-direction: column;
-    gap: 10px;
-  }
-  
-  .search-input {
-    width: 100%;
-  }
-  
-  .history-card {
-    padding: 20px;
-  }
-  
-  .chat-stats {
-    flex-direction: column;
-    gap: 8px;
-  }
-  
-  .card-footer {
-    flex-direction: column;
-    gap: 15px;
-    align-items: stretch;
-  }
+  .history-header { flex-direction: column; align-items: stretch; }
+  .header-actions { flex-direction: column; align-items: stretch; }
+  .search-input, .course-select { width: 100%; }
 }
 </style>

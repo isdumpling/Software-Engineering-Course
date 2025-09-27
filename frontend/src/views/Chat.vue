@@ -1,65 +1,67 @@
 <template>
-  <div class="chat-container">
-    <!-- 聊天头部 -->
-    <div class="chat-header">
-      <div class="header-left">
+  <div class="chat-layout">
+    <!-- 历史对话侧边栏 -->
+    <div class="history-sidebar" :class="{ 'is-visible': showHistory }">
+      <div class="sidebar-header">
+        <h4><i class="el-icon-time"></i> 历史对话</h4>
         <el-button 
-          icon="el-icon-arrow-left" 
-          @click="goBack"
+          icon="el-icon-close" 
+          @click="showHistory = false"
           circle
-          size="small"
+          size="mini"
+          class="close-sidebar-btn"
         ></el-button>
-        <div class="course-info">
-          <h3>{{ courseName }}</h3>
-          <span>智能助教为您服务</span>
-        </div>
       </div>
-      <div class="header-right">
-        <el-button 
-          icon="el-icon-refresh-left" 
-          @click="clearChat"
-          size="small"
-          type="text"
-        >
-          新对话
+      <div class="new-chat-button-container">
+        <el-button icon="el-icon-plus" @click="clearChat" class="new-chat-btn">
+          新的对话
         </el-button>
-        <el-button 
-          icon="el-icon-s-unfold" 
-          @click="showHistory = !showHistory"
-          size="small"
-          type="text"
+      </div>
+      <div class="history-list">
+        <div 
+          v-for="chat in courseHistories" 
+          :key="chat.id"
+          class="history-item"
+          :class="{ active: currentChatId === chat.id }"
+          @click="loadChat(chat)"
         >
-          历史对话
-        </el-button>
+          <i class="el-icon-chat-dot-round history-icon"></i>
+          <div class="history-info">
+            <div class="history-title">{{ chat.title }}</div>
+            <div class="history-time">{{ formatTime(chat.createdAt) }}</div>
+          </div>
+        </div>
+        <div v-if="courseHistories.length === 0" class="no-history">
+          <i class="el-icon-info"></i>
+          <p>暂无历史对话</p>
+        </div>
       </div>
     </div>
 
-    <div class="chat-body">
-      <!-- 历史对话侧边栏 -->
-      <div v-if="showHistory" class="history-sidebar">
-        <div class="sidebar-header">
-          <h4>历史对话</h4>
+    <div class="chat-container">
+      <!-- 聊天头部 -->
+      <div class="chat-header">
+        <div class="header-left">
           <el-button 
-            icon="el-icon-close" 
-            @click="showHistory = false"
-            size="mini"
-            type="text"
+            icon="el-icon-arrow-left" 
+            @click="goBack"
+            circle
+            class="back-button"
           ></el-button>
+          <div class="course-info">
+            <h3>{{ courseName }}</h3>
+            <span>智能助教在线</span>
+          </div>
         </div>
-        <div class="history-list">
-          <div 
-            v-for="chat in courseHistories" 
-            :key="chat.id"
-            class="history-item"
-            :class="{ active: currentChatId === chat.id }"
-            @click="loadChat(chat)"
-          >
-            <div class="history-title">{{ chat.title }}</div>
-            <div class="history-time">{{ formatTime(chat.updatedAt) }}</div>
-          </div>
-          <div v-if="courseHistories.length === 0" class="no-history">
-            暂无历史对话
-          </div>
+        <div class="header-right">
+          <el-tooltip content="历史对话" placement="bottom">
+            <el-button 
+              icon="el-icon-s-fold" 
+              @click="showHistory = !showHistory"
+              circle
+              class="history-button"
+            ></el-button>
+          </el-tooltip>
         </div>
       </div>
 
@@ -69,18 +71,25 @@
         <div class="messages-container" ref="messagesContainer">
           <div v-if="messages.length === 0" class="welcome-message">
             <div class="welcome-content">
-              <i class="el-icon-chat-dot-round"></i>
-              <h4>开始对话</h4>
-              <p>您可以询问关于{{ courseName }}的任何问题</p>
+              <div class="brand-logo">
+                <svg width="60" height="60" viewBox="0 0 64 64">
+                  <path fill="none" stroke="#5A8DFF" stroke-width="3" stroke-miterlimit="10" d="M1 20L32 6l31 14-31 14z"/>
+                  <path fill="none" stroke="#5A8DFF" stroke-width="3" stroke-miterlimit="10" d="M11 26v18c0 4.418 9.399 8 21 8s21-3.582 21-8V26"/>
+                  <path fill="none" stroke="#5A8DFF" stroke-width="3" stroke-miterlimit="10" d="M57 40V28"/>
+                </svg>
+              </div>
+              <h2>{{ courseName }} 智能助教</h2>
+              <p>你好！有什么可以帮助你的吗？</p>
               <div class="quick-questions">
-                <el-tag 
+                <el-button 
                   v-for="question in quickQuestions" 
                   :key="question"
                   @click="sendQuickQuestion(question)"
-                  class="quick-tag"
+                  class="quick-question-btn"
+                  size="small"
                 >
                   {{ question }}
-                </el-tag>
+                </el-button>
               </div>
             </div>
           </div>
@@ -92,10 +101,10 @@
             :class="{ 'user-message': message.role === 'user', 'ai-message': message.role === 'assistant' }"
           >
             <div class="message-avatar">
-              <i :class="message.role === 'user' ? 'el-icon-user-solid' : 'el-icon-cpu'"></i>
+              <i :class="message.role === 'user' ? 'el-icon-user' : 'el-icon-cpu'"></i>
             </div>
             <div class="message-content">
-              <div class="message-text">{{ message.content }}</div>
+              <div class="message-text" v-html="formatMarkdown(message.content)"></div>
               <div class="message-time">{{ formatTime(message.timestamp) }}</div>
             </div>
           </div>
@@ -121,13 +130,11 @@
             <el-input
               v-model="currentMessage"
               type="textarea"
-              :rows="1"
-              placeholder="输入您的问题..."
+              :autosize="{ minRows: 1, maxRows: 5 }"
+              placeholder="请在此输入您的问题...(Ctrl+Enter换行)"
               @keyup.enter.native="handleEnter"
               ref="messageInput"
               resize="none"
-              maxlength="1000"
-              show-word-limit
             ></el-input>
             <el-button 
               type="primary" 
@@ -135,10 +142,9 @@
               @click="sendMessage"
               :loading="isLoading"
               :disabled="!currentMessage.trim()"
+              circle
               class="send-button"
-            >
-              发送
-            </el-button>
+            ></el-button>
           </div>
         </div>
       </div>
@@ -385,62 +391,71 @@ export default {
       if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前'
       if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前'
       return date.toLocaleDateString() + ' ' + date.toLocaleTimeString().slice(0, 5)
+    },
+    
+    formatMarkdown(text) {
+      if (!text) return ''
+      
+      // 转义HTML特殊字符（安全性考虑）
+      let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+      
+      // 处理markdown语法
+      html = html
+        // 标题处理 (必须在其他处理之前)
+        .replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>')
+        .replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>')
+        .replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>')
+        // 粗体 **text** -> <strong>text</strong>
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // 斜体 *text* -> <em>text</em>
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // 行内代码 `code` -> <code>code</code>
+        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+        // 代码块 ```code``` -> <pre><code>code</code></pre>
+        .replace(/```([\s\S]*?)```/g, '<pre class="code-block"><code>$1</code></pre>')
+        // 换行符处理
+        .replace(/\n/g, '<br>')
+        // 链接 [text](url) -> <a href="url">text</a>
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+        // 列表项 - item -> <li>item</li>（简单处理）
+        .replace(/^- (.+)$/gm, '<li>$1</li>')
+        // 包装连续的列表项
+        .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
+      
+      return html
     }
   }
 }
 </script>
 
 <style scoped>
-.chat-container {
-  height: calc(100vh - 60px);
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+.chat-layout {
   display: flex;
-  flex-direction: column;
-  background: #f5f5f5;
-}
-
-.chat-header {
-  background: white;
-  padding: 15px 20px;
-  border-bottom: 1px solid #e4e7ed;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-
-.course-info h3 {
-  margin: 0;
-  font-size: 18px;
-  color: #333;
-}
-
-.course-info span {
-  font-size: 12px;
-  color: #999;
-}
-
-.chat-body {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
+  height: calc(100vh - 65px); /* Full height minus the app header */
+  font-family: 'Noto Sans SC', sans-serif;
+  background-color: #f7f8fc;
 }
 
 .history-sidebar {
   width: 280px;
-  background: white;
-  border-right: 1px solid #e4e7ed;
+  background: #ffffff;
+  border-right: 1px solid #eef0f3;
   display: flex;
   flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  flex-shrink: 0;
 }
 
 .sidebar-header {
-  padding: 15px 20px;
-  border-bottom: 1px solid #e4e7ed;
+  padding: 15px;
+  border-bottom: 1px solid #eef0f3;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -449,34 +464,76 @@ export default {
 .sidebar-header h4 {
   margin: 0;
   font-size: 16px;
+  font-weight: 600;
   color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.new-chat-button-container {
+  padding: 15px;
+  border-bottom: 1px solid #eef0f3;
+}
+
+.new-chat-btn {
+  width: 100%;
+  background-color: #f7f8fc;
+  border-color: #e0e4eb;
+  color: #5A8DFF;
+  font-weight: 500;
+}
+.new-chat-btn:hover {
+  background-color: #eef1f8;
+  border-color: #cdd3e0;
 }
 
 .history-list {
   flex: 1;
   overflow-y: auto;
+  padding: 8px;
 }
 
 .history-item {
-  padding: 15px 20px;
-  border-bottom: 1px solid #f5f5f5;
+  padding: 12px;
+  border-radius: 8px;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 5px;
 }
 
 .history-item:hover {
-  background: #f5f5f5;
+  background: #f7f8fc;
 }
 
 .history-item.active {
-  background: #e6f7ff;
-  border-right: 3px solid #409EFF;
+  background: #5A8DFF;
+  color: white;
+}
+.history-item.active .history-time {
+  color: #e0eaff;
+}
+.history-item.active .history-icon {
+  color: white;
+}
+
+
+.history-icon {
+  font-size: 16px;
+  color: #888;
+}
+
+.history-info {
+  overflow: hidden;
 }
 
 .history-title {
   font-size: 14px;
-  color: #333;
-  margin-bottom: 5px;
+  font-weight: 500;
+  margin-bottom: 4px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -488,17 +545,56 @@ export default {
 }
 
 .no-history {
-  padding: 20px;
+  padding: 30px 15px;
   text-align: center;
-  color: #999;
-  font-size: 14px;
+  color: #aaa;
+}
+.no-history i {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.chat-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-header {
+  background: white;
+  padding: 10px 20px;
+  border-bottom: 1px solid #eef0f3;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  height: 65px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.course-info h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.course-info span {
+  font-size: 13px;
+  color: #888;
 }
 
 .chat-main {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  overflow: hidden;
 }
 
 .messages-container {
@@ -516,22 +612,22 @@ export default {
 
 .welcome-content {
   text-align: center;
-  color: #999;
+  color: #777;
 }
 
-.welcome-content i {
-  font-size: 48px;
-  margin-bottom: 15px;
-  color: #ddd;
+.brand-logo {
+  margin-bottom: 20px;
 }
 
-.welcome-content h4 {
-  margin: 0 0 10px 0;
+.welcome-content h2 {
+  font-size: 24px;
+  font-weight: 600;
   color: #333;
+  margin: 0 0 10px 0;
 }
-
 .welcome-content p {
-  margin: 0 0 20px 0;
+  margin: 0 0 30px 0;
+  font-size: 15px;
 }
 
 .quick-questions {
@@ -539,21 +635,24 @@ export default {
   flex-wrap: wrap;
   gap: 10px;
   justify-content: center;
+  max-width: 500px;
 }
 
-.quick-tag {
-  cursor: pointer;
+.quick-question-btn {
+  background-color: #f7f8fc;
+  border: 1px solid #eef0f3;
+  color: #555;
   transition: all 0.2s;
 }
-
-.quick-tag:hover {
-  background: #409EFF;
-  color: white;
+.quick-question-btn:hover {
+  background: #eef1f8;
+  color: #5A8DFF;
+  border-color: #cdd3e0;
 }
 
 .message-item {
   display: flex;
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   gap: 12px;
 }
 
@@ -562,127 +661,220 @@ export default {
 }
 
 .message-avatar {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .user-message .message-avatar {
-  background: #409EFF;
+  background: #5A8DFF;
   color: white;
 }
 
 .ai-message .message-avatar {
-  background: #f0f0f0;
-  color: #666;
+  background: #eef1f8;
+  color: #5A8DFF;
 }
 
 .message-content {
-  max-width: 70%;
+  max-width: 75%;
 }
 
 .user-message .message-content {
-  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .message-text {
-  background: white;
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  padding: 12px 18px;
+  border-radius: 18px;
   word-wrap: break-word;
-  line-height: 1.5;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.ai-message .message-text {
+  background: #fff;
+  border: 1px solid #eef0f3;
+  border-top-left-radius: 4px;
 }
 
 .user-message .message-text {
-  background: #409EFF;
+  background: #5A8DFF;
   color: white;
+  border-top-right-radius: 4px;
 }
 
 .message-time {
   font-size: 12px;
-  color: #999;
-  margin-top: 5px;
+  color: #aaa;
+  margin-top: 8px;
+  padding: 0 5px;
 }
 
 .message-loading {
-  background: white;
-  padding: 12px 16px;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  background: #fff;
+  border: 1px solid #eef0f3;
+  padding: 15px 18px;
+  border-radius: 18px;
+  border-top-left-radius: 4px;
   display: flex;
-  gap: 4px;
+  gap: 5px;
+  align-items: center;
 }
 
 .message-loading span {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ddd;
+  background: #ccc;
   animation: loading 1.4s infinite;
 }
 
-.message-loading span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.message-loading span:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.message-loading span:nth-child(2) { animation-delay: 0.2s; }
+.message-loading span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes loading {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
+  0%, 80%, 100% { transform: scale(0.5); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 .input-area {
-  padding: 20px;
-  border-top: 1px solid #e4e7ed;
-  background: #fafafa;
+  padding: 15px 20px;
+  border-top: 1px solid #eef0f3;
+  background: #fff;
 }
 
 .input-container {
   display: flex;
   gap: 10px;
   align-items: flex-end;
+  background-color: #f7f8fc;
+  border-radius: 25px;
+  padding: 5px 10px 5px 20px;
 }
 
 .input-container .el-textarea {
   flex: 1;
 }
 
+.input-container >>> .el-textarea__inner {
+  background: transparent;
+  border: none;
+  padding: 10px 0;
+  font-size: 15px;
+}
+
 .send-button {
+  width: 40px;
   height: 40px;
-  padding: 0 20px;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .history-sidebar {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     height: 100%;
-    z-index: 1000;
-    box-shadow: 2px 0 8px rgba(0,0,0,0.1);
+    z-index: 1001;
+    transform: translateX(-100%);
+    box-shadow: 2px 0 15px rgba(0,0,0,0.1);
   }
-  
-  .message-content {
-    max-width: 85%;
+  .history-sidebar.is-visible {
+    transform: translateX(0);
   }
-  
-  .quick-questions {
-    flex-direction: column;
-    align-items: center;
-  }
+  .close-sidebar-btn { display: block; }
+  .history-button { display: block; }
+
+  .back-button { display: none; }
+  .course-info h3 { font-size: 16px; }
+  .message-content { max-width: 85%; }
+}
+@media (min-width: 769px) {
+  .close-sidebar-btn { display: none; }
+  .history-button { display: none; }
+}
+
+/* Markdown 样式 */
+.message-text >>> h1, .message-text >>> h2, .message-text >>> h3 {
+  font-weight: 600;
+  color: #333;
+  margin-top: 1em;
+  margin-bottom: 0.5em;
+}
+.user-message .message-text >>> h1, .user-message .message-text >>> h2, .user-message .message-text >>> h3 {
+  color: #fff;
+}
+.message-text >>> h1 { font-size: 1.4em; }
+.message-text >>> h2 { font-size: 1.2em; }
+.message-text >>> h3 { font-size: 1.1em; }
+
+.message-text >>> p {
+  margin: 0.8em 0;
+}
+
+.message-text >>> strong {
+  font-weight: 600;
+}
+
+.message-text >>> em {
+  font-style: italic;
+}
+
+.message-text >>> .inline-code {
+  background: #f0f2f5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.9em;
+  color: #e74c3c;
+}
+.user-message .message-text >>> .inline-code {
+  background: rgba(0,0,0,0.15);
+  color: #fff;
+}
+
+.message-text >>> .code-block {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 1em 0;
+  overflow-x: auto;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  font-size: 0.9em;
+  color: #333;
+}
+.message-text >>> .code-block code {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.message-text >>> ul, .message-text >>> ol {
+  margin: 0.8em 0;
+  padding-left: 25px;
+}
+.message-text >>> li {
+  margin: 0.4em 0;
+}
+
+.message-text >>> a {
+  color: #5A8DFF;
+  text-decoration: none;
+  font-weight: 500;
+}
+.message-text >>> a:hover {
+  text-decoration: underline;
+}
+.user-message .message-text >>> a {
+  color: #fff;
+  text-decoration: underline;
 }
 </style>
