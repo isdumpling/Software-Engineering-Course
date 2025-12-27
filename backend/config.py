@@ -9,7 +9,7 @@ class Settings:
     MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
     MYSQL_PORT = int(os.getenv("MYSQL_PORT", "3306"))
     MYSQL_USER = os.getenv("MYSQL_USER", "root")
-    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "123456")  # 请修改为您的密码
+    MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "12345678")  # 请修改为您的密码
     MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "course_assistant")
     
     # 构建数据库URL

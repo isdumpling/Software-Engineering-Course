@@ -9,6 +9,15 @@ from config import settings
 import logging
 from volcenginesdkarkruntime import Ark
 
+#嵌入模型访问走镜像站
+
+if "HF_ENDPOINT" not in os.environ:
+    os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+from typing import Optional, Dict, Any
+
+#
+
 # --- RAG 相关导入 ---
 from langchain_community.vectorstores import Chroma
 # 尝试使用新的HuggingFace嵌入
