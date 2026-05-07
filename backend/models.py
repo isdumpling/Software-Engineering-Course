@@ -18,9 +18,10 @@ class User(Base):
     
     # 用户状态
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
-    
+
     # 关联聊天记录
     chat_sessions = relationship("ChatSession", back_populates="user")
     chat_messages = relationship("ChatMessage", back_populates="user")
@@ -73,3 +74,23 @@ class ResetToken(Base):
     
     # 关联用户
     user = relationship("User")
+
+class KnowledgeBuildTask(Base):
+    """知识库构建任务表"""
+    __tablename__ = "knowledge_build_tasks"
+
+    id = Column(String(50), primary_key=True, index=True)
+    course_id = Column(String(50), nullable=False)
+    course_name = Column(String(100), nullable=True)
+
+    status = Column(String(30), nullable=False, default="pending")
+    source_file = Column(String(255), nullable=True)
+    vector_db_path = Column(String(255), nullable=True)
+
+    document_count = Column(Integer, default=0)
+    log = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
+
+    started_at = Column(DateTime(timezone=True), nullable=True)
+    finished_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

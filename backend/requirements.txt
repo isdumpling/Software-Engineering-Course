@@ -1,10 +1,16 @@
 fastapi==0.117.1
 langchain==0.3.27
+langchain-community
+langchain-huggingface
+chromadb
 passlib==1.7.4
 pydantic==2.11.9
 PyMySQL==1.1.0
 python-dotenv==1.1.1
+python-docx
+python-multipart
 python_jose==3.3.0
+sentence-transformers
 SQLAlchemy==2.0.23
 torch==2.8.0
 tqdm==4.67.1

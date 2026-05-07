@@ -43,7 +43,7 @@ class DoubaoAIService:
     def __init__(self):
         self.api_key = settings.ARK_API_KEY
         self.model = settings.DOUBAO_MODEL
-        self.client = Ark(api_key=self.api_key)
+        self.client = Ark(base_url='https://ark.cn-beijing.volces.com/api/v3', api_key=self.api_key)
         
         # 初始化RAG组件
         print("🧠 正在加载嵌入模型 (用于多课程RAG)...")
@@ -177,23 +177,30 @@ class DoubaoAIService:
                 }
             ]
             
-            # 4. 调用大语言模型
+            # 4. 调用大语言模型 (v3 API: responses.create)
             print(f"💬 [{course_id}] 正在调用豆包AI生成回答...")
             loop = asyncio.get_event_loop()
             completion = await loop.run_in_executor(
                 None,
-                lambda: self.client.chat.completions.create(
+                lambda: self.client.responses.create(
                     model=self.model,
-                    messages=messages
+                    input=messages
                 )
             )
-            
-            if completion.choices and len(completion.choices) > 0:
-                ai_response = completion.choices[0].message.content
+
+            # 从 v3 响应中提取文本: output 列表中找 ResponseOutputMessage
+            ai_response = ""
+            for item in completion.output:
+                content = getattr(item, "content", [])
+                for c in content:
+                    if getattr(c, "text", None):
+                        ai_response += c.text
+
+            if ai_response:
                 logger.info(f"[{course_id}] AI回答生成成功，长度: {len(ai_response)}")
                 return ai_response.strip()
             else:
-                logger.error(f"[{course_id}] 豆包API响应格式错误：没有找到choices")
+                logger.error(f"[{course_id}] 豆包API响应为空")
                 return self._get_fallback_response(query, course_id, course_name)
                     
         except Exception as e:
@@ -248,8 +255,78 @@ class DoubaoAIService:
     def get_loaded_courses(self):
         """获取已加载的课程列表"""
         return {
-            course_id: COURSE_CONFIG[course_id]["name"] 
+            course_id: COURSE_CONFIG[course_id]["name"]
             for course_id in self.course_retrievers.keys()
+        }
+
+    def reload_course(self, course_id: str) -> dict:
+        """重新加载指定课程的向量数据库"""
+        course_config = COURSE_CONFIG.get(course_id)
+        if not course_config:
+            return {"success": False, "message": f"课程不存在: {course_id}"}
+
+        course_name = course_config["name"]
+        db_path = os.path.join(VECTOR_DB_BASE_PATH, course_id)
+
+        if not os.path.exists(db_path):
+            self.course_vectordbs.pop(course_id, None)
+            self.course_retrievers.pop(course_id, None)
+            return {
+                "success": False, "course_id": course_id,
+                "message": f"{course_name} 的向量数据库不存在",
+            }
+
+        try:
+            vectordb = Chroma(persist_directory=db_path, embedding_function=self.embeddings)
+            doc_count = len(vectordb._collection.get()["documents"])
+            self.course_vectordbs[course_id] = vectordb
+            self.course_retrievers[course_id] = vectordb.as_retriever(search_kwargs={"k": 5})
+            return {
+                "success": True, "course_id": course_id,
+                "course_name": course_name, "document_count": doc_count,
+                "message": f"{course_name} 向量数据库重新加载成功",
+            }
+        except Exception as e:
+            return {"success": False, "course_id": course_id, "message": str(e)}
+
+    def reload_all_courses(self) -> dict:
+        """重新加载所有课程的向量数据库"""
+        total = len(COURSE_CONFIG)
+        success_count = 0
+        results = {}
+        for course_id in COURSE_CONFIG:
+            r = self.reload_course(course_id)
+            results[course_id] = r
+            if r.get("success"):
+                success_count += 1
+        results["_summary"] = {"total": total, "success": success_count, "failed": total - success_count}
+        return results
+
+    def test_retrieval(self, course_id: str, query: str, top_k: int = 5) -> dict:
+        """测试向量检索效果"""
+        course_config = COURSE_CONFIG.get(course_id)
+        course_name = course_config["name"] if course_config else course_id
+
+        if course_id not in self.course_vectordbs:
+            return {
+                "success": False, "course_id": course_id,
+                "course_name": course_name, "original_query": query,
+                "optimized_query": query, "results": [],
+                "message": "该课程知识库尚未加载，请先构建并重新加载向量库",
+            }
+
+        optimized_query = self._optimize_query_for_course(query, course_id)
+        retriever = self.course_vectordbs[course_id].as_retriever(search_kwargs={"k": top_k})
+        docs = retriever.invoke(optimized_query)
+
+        return {
+            "success": True, "course_id": course_id,
+            "course_name": course_name, "original_query": query,
+            "optimized_query": optimized_query,
+            "results": [
+                {"content": doc.page_content, "metadata": doc.metadata}
+                for doc in docs
+            ],
         }
 
     def get_course_stats(self):

@@ -8,6 +8,7 @@ from schemas import (
     ForgotPasswordRequest, ResetPasswordRequest, SecurityQuestionRequest,
     SecurityQuestionResponse, VerifySecurityAnswerRequest
 )
+from config import settings
 from auth import (
     get_password_hash, authenticate_user, create_access_token,
     generate_reset_token, get_current_user
@@ -45,7 +46,8 @@ async def register(user: UserCreate, db: Session = Depends(get_db)):
         email=user.email,
         password=hashed_password,
         security_question=user.security_question,
-        security_answer=hashed_security_answer
+        security_answer=hashed_security_answer,
+        is_admin=user.username in settings.ADMIN_USERNAMES
     )
     
     db.add(db_user)

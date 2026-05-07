@@ -1,8 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from config import settings
 from database import init_db
-from routers import auth, chat
+from routers import auth, chat, admin
 from ai_service import get_ai_service  # 导入get_ai_service函数
 import uvicorn
 
@@ -20,11 +21,13 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    max_age=0,  # 禁用预检缓存，避免后端重启后浏览器缓存失效预检结果
 )
 
 # 注册路由
 app.include_router(auth.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 
 @app.on_event("startup")
 async def startup_event():
@@ -35,7 +38,37 @@ async def startup_event():
         print("数据库初始化成功！")
     except Exception as e:
         print(f"数据库初始化失败: {e}")
-    
+
+    # 自动创建管理员账号
+    if settings.ADMIN_DEFAULT_PASSWORD:
+        from database import SessionLocal
+        from models import User
+        from auth import get_password_hash
+        db = SessionLocal()
+        try:
+            for username in settings.ADMIN_USERNAMES:
+                existing = db.query(User).filter(User.username == username).first()
+                if existing:
+                    if not existing.is_admin:
+                        existing.is_admin = True
+                        db.commit()
+                        print(f"✅ 用户 '{username}' 已升级为管理员")
+                else:
+                    db.add(User(
+                        username=username,
+                        email=settings.ADMIN_DEFAULT_EMAIL,
+                        password=get_password_hash(settings.ADMIN_DEFAULT_PASSWORD),
+                        is_admin=True,
+                    ))
+                    db.commit()
+                    print(f"✅ 管理员 '{username}' 已自动创建，密码为 .env 中 ADMIN_DEFAULT_PASSWORD")
+        except Exception as e:
+            print(f"⚠️ 管理员账号初始化失败: {e}")
+        finally:
+            db.close()
+    else:
+        print("💡 ADMIN_DEFAULT_PASSWORD 未设置，管理员需通过注册页面创建（用户名须在 ADMIN_USERNAMES 中）")
+
     # 在应用启动时强制创建新的AI服务实例
     print("正在初始化AI服务...")
     import ai_service

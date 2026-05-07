@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 # 用户相关模式
 class UserCreate(BaseModel):
@@ -19,8 +19,9 @@ class UserResponse(BaseModel):
     username: str
     email: str
     is_active: bool
+    is_admin: bool = False
     created_at: datetime
-    
+
     class Config:
         from_attributes = True
 
@@ -98,3 +99,50 @@ class MessageResponse(BaseModel):
 class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
+
+# 管理员接口模型
+class AdminCourseStatus(BaseModel):
+    course_id: str
+    course_name: str
+    doc_file: str
+    doc_exists: bool
+    doc_size: int
+    vector_db_exists: bool
+    vector_db_size: int
+    document_count: int
+    loaded: bool
+
+class RetrievalTestRequest(BaseModel):
+    course_id: str
+    query: str
+    top_k: int = 5
+
+class RetrievalResultItem(BaseModel):
+    content: str
+    metadata: Dict[str, Any] = {}
+
+class RetrievalTestResponse(BaseModel):
+    success: bool
+    course_id: str
+    course_name: Optional[str] = None
+    original_query: str
+    optimized_query: str
+    results: List[RetrievalResultItem] = []
+    message: Optional[str] = None
+
+class KnowledgeBuildTaskResponse(BaseModel):
+    id: str
+    course_id: str
+    course_name: Optional[str] = None
+    status: str
+    source_file: Optional[str] = None
+    vector_db_path: Optional[str] = None
+    document_count: int = 0
+    log: Optional[str] = None
+    error_message: Optional[str] = None
+    started_at: Optional[datetime] = None
+    finished_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

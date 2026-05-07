@@ -24,6 +24,14 @@
               <i class="el-icon-time"></i>
               <span>对话历史</span>
             </el-menu-item>
+            <el-menu-item
+              v-if="isAdmin"
+              index="/admin/dashboard"
+              class="nav-item"
+            >
+              <i class="el-icon-s-tools"></i>
+              <span>管理员控制台</span>
+            </el-menu-item>
           </el-menu>
         </div>
 
@@ -59,6 +67,9 @@ export default {
     },
     username() {
       return this.$store.getters.username || '用户';
+    },
+    isAdmin() {
+      return this.$store.getters.isAdmin;
     }
   },
   methods: {

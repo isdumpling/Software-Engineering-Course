@@ -16,24 +16,29 @@ module.exports = defineConfig({
       }
     }
   },
-  
+
   // 生产环境配置
   publicPath: process.env.NODE_ENV === 'production' ? './' : '/',
   outputDir: 'dist',
   assetsDir: 'static',
-  
+
   // 关闭eslint检查（避免开发时的警告）
   lintOnSave: false,
-  
+
   // 关闭生产环境的source map
   productionSourceMap: false,
-  
+
   // 配置webpack
   configureWebpack: {
     resolve: {
       alias: {
         '@': require('path').resolve(__dirname, 'src')
       }
+    },
+    // WSL Plan 9 网络文件系统不支持 fs.watch，使用轮询模式
+    watchOptions: {
+      poll: 1000,
+      ignored: /node_modules/
     }
   },
   

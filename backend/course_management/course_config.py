@@ -211,18 +211,14 @@ class CourseManager:
                     total_size += os.path.getsize(filepath)
             stats["vector_db_size"] = total_size
             
-            # 尝试获取文档数量
+            # 尝试获取文档数量（用 chromadb 直连，不需要加载嵌入模型）
             try:
-                from langchain_community.vectorstores import Chroma
-                try:
-                    from langchain_huggingface import HuggingFaceEmbeddings
-                except ImportError:
-                    from langchain_community.embeddings import HuggingFaceEmbeddings
-                
-                embeddings = HuggingFaceEmbeddings(model_name="BAAI/bge-large-zh-v1.5")
-                vectordb = Chroma(persist_directory=db_path, embedding_function=embeddings)
-                stats["document_count"] = len(vectordb._collection.get()['documents'])
-            except Exception as e:
+                import chromadb
+                client = chromadb.PersistentClient(path=db_path)
+                collections = client.list_collections()
+                if collections:
+                    stats["document_count"] = collections[0].count()
+            except Exception:
                 stats["document_count"] = -1  # 表示无法获取
         
         return stats

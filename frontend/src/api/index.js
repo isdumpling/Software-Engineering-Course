@@ -2,13 +2,39 @@ import axios from 'axios'
 import router from '../router'
 import { Message } from 'element-ui'
 
+const API_BASE = 'http://localhost:8000/api'
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api',
-  timeout: 180000, // 增加到60秒以支持AI调用
+  baseURL: API_BASE,
+  timeout: 180000,
   headers: {
     'Content-Type': 'application/json'
   }
 })
+
+// ---- fetch 封装（绕过 XHR + CORS 预检缓存问题） ----
+async function fetchApi(method, path, body) {
+  const headers = {}
+  const token = localStorage.getItem('token')
+  if (token) headers.Authorization = `Bearer ${token}`
+  // GET/HEAD 不加 Content-Type，避免触发不必要的 CORS 预检
+  if (method !== 'GET' && method !== 'HEAD') {
+    headers['Content-Type'] = 'application/json'
+  }
+
+  const opts = { method, headers }
+  if (body) opts.body = JSON.stringify(body)
+
+  const resp = await fetch(API_BASE + path, opts)
+  const data = await resp.json()
+
+  if (!resp.ok) {
+    const err = new Error(data.detail || data.error || `HTTP ${resp.status}`)
+    err.response = { status: resp.status, data }
+    throw err
+  }
+  return data
+}
 
 api.interceptors.request.use(
   config => {
@@ -125,6 +151,58 @@ export const chatAPI = {
   
   getChatStats() {
     return api.get('/chat/stats')
+  }
+}
+
+export const adminAPI = {
+  getDashboard() {
+    return fetchApi('GET', '/admin/dashboard')
+  },
+
+  getCourses() {
+    return fetchApi('GET', '/admin/courses')
+  },
+
+  async uploadMaterial(courseId, file) {
+    const headers = {}
+    const token = localStorage.getItem('token')
+    if (token) headers.Authorization = `Bearer ${token}`
+    const formData = new FormData()
+    formData.append('file', file)
+    const resp = await fetch(API_BASE + `/admin/courses/${courseId}/material`, {
+      method: 'POST', headers, body: formData
+    })
+    const data = await resp.json()
+    if (!resp.ok) throw new Error(data.detail || '上传失败')
+    return data
+  },
+
+  buildKnowledge(courseId) {
+    return fetchApi('POST', `/admin/courses/${courseId}/knowledge/build`)
+  },
+
+  getBuildTask(taskId) {
+    return fetchApi('GET', `/admin/knowledge/tasks/${taskId}`)
+  },
+
+  getBuildTasks() {
+    return fetchApi('GET', '/admin/knowledge/tasks')
+  },
+
+  testRetrieval(data) {
+    return fetchApi('POST', '/admin/retrieval-test', data)
+  },
+
+  getSystemHealth() {
+    return fetchApi('GET', '/admin/system/health')
+  },
+
+  reloadAI() {
+    return fetchApi('POST', '/admin/ai/reload')
+  },
+
+  reloadCourse(courseId) {
+    return fetchApi('POST', `/admin/ai/reload/${courseId}`)
   }
 }
 

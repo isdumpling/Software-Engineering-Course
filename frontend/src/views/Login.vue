@@ -108,7 +108,7 @@ export default {
             const userData = {
               username: response.user.username,
               token: response.access_token,
-              user: response.user
+              isAdmin: response.user.is_admin
             }
             
             this.$store.dispatch('login', userData)

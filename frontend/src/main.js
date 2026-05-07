@@ -5,12 +5,12 @@ import store from './store'
 import ElementUI from 'element-ui'
 import 'element-ui/lib/theme-chalk/index.css'
 import './assets/styles/global.css'
-import api, { authAPI, chatAPI, commonAPI } from './api'
+import api, { authAPI, chatAPI, commonAPI, adminAPI } from './api'
 
 Vue.config.productionTip = false
 
 // 配置API
-Vue.prototype.$api = { authAPI, chatAPI, commonAPI }
+Vue.prototype.$api = { authAPI, chatAPI, commonAPI, adminAPI }
 Vue.prototype.$http = api
 
 // 使用Element UI
