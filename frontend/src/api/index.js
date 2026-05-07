@@ -163,12 +163,11 @@ export const adminAPI = {
     return fetchApi('GET', '/admin/courses')
   },
 
-  async uploadMaterial(courseId, file) {
+  async uploadMaterial(courseId, formData) {
+    // formData 由调用方构造（含原始 File 对象），直接发送，不要再包装
     const headers = {}
     const token = localStorage.getItem('token')
     if (token) headers.Authorization = `Bearer ${token}`
-    const formData = new FormData()
-    formData.append('file', file)
     const resp = await fetch(API_BASE + `/admin/courses/${courseId}/material`, {
       method: 'POST', headers, body: formData
     })
